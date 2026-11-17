@@ -29,6 +29,7 @@
     var v = video();
     if (!v) { status('No se encontró el elemento de video.'); return; }
     disposeHls();
+    v.muted = false;
     status('Cargando…');
 
     var done = function () {
