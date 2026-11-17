@@ -1,10 +1,35 @@
-/* LibreStream — logica de la interfaz (sin Blazor, solo JS del navegador). */
+/* LibreStream — lógica de la interfaz (sin Blazor, solo JS del navegador). */
 (function () {
   'use strict';
 
+  /* Catálogo legal integrado: contenido libre (Creative Commons) y streams de prueba
+     con CORS habilitado. Verificado reproduciendo con hls.js en navegador real. */
+  var BUILTIN = [
+    {
+      name: 'Big Buck Bunny', group: 'Películas (CC)',
+      url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      id: 'builtin-bbb'
+    },
+    {
+      name: 'Tears of Steel', group: 'Películas (CC)',
+      url: 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8',
+      id: 'builtin-tos'
+    },
+    {
+      name: 'Angel One', group: 'Películas (CC)',
+      url: 'https://storage.googleapis.com/shaka-demo-assets/angel-one-hls/hls.m3u8',
+      id: 'builtin-angel'
+    },
+    {
+      name: 'Canal Demo 24/7 (HLS)', group: 'Canales en vivo (demo)',
+      url: 'https://test-streams.mux.dev/pts_shift/master.m3u8',
+      id: 'builtin-live'
+    }
+  ];
+
   var state = {
-    mode: 'pluto',
-    channels: [],
+    mode: 'catalog',
+    channels: BUILTIN.slice(),
     localFiles: [],
     current: null,
     currentId: null,
@@ -12,7 +37,7 @@
     group: 'Todos',
     plutoPage: '',
     customUrl: '',
-    lastSourceKey: null
+    lastSourceKey: 'catalog'
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -175,19 +200,33 @@
     document.querySelectorAll('.tab').forEach(function (t) {
       t.classList.toggle('active', t.getAttribute('data-mode') === mode);
     });
-    ['pluto', 'm3u', 'file', 'local'].forEach(function (m) {
-      $('panel-' + m).style.display = (m === mode ? '' : 'none');
+    ['catalog', 'pluto', 'm3u', 'file', 'local'].forEach(function (m) {
+      var panel = $('panel-' + m);
+      if (panel) panel.style.display = (m === mode ? '' : 'none');
     });
     var isPluto = (mode === 'pluto');
     $('view-pluto').style.display = isPluto ? '' : 'none';
     $('view-player').style.display = isPluto ? 'none' : '';
     showStatus('');
-    if (!isPluto) window.librePlayer.stop();
+
+    var legal = $('legalNote');
+    if (legal) {
+      legal.textContent = (mode === 'catalog')
+        ? 'Catálogo integrado: películas cortas y demos bajo licencias libres (Blender Foundation / Creative Commons) y un canal de prueba HLS. LibreStream no distribuye contenido; usa además tus propias listas o archivos con licencia.'
+        : 'LibreStream es un reproductor genérico y no distribuye contenido. Usa únicamente listas y archivos propios o con licencia.';
+    }
+
+    if (mode === 'catalog') {
+      setChannels(BUILTIN.slice(), 'catalog', '✔ ' + BUILTIN.length + ' elementos del catálogo listos.');
+    } else if (!isPluto) {
+      window.librePlayer.stop();
+    }
   }
 
   function setPlutoPage(page) {
     state.plutoPage = page;
-    var url = page ? ('https://pluto.tv/' + page) : 'https://pluto.tv/';
+    var base = 'https://pluto.tv/latam/';
+    var url = page ? (base + page) : base;
     $('plutoFrame').src = url;
     $('plutoOpenTab').href = url;
     document.querySelectorAll('[data-pluto]').forEach(function (b) {
@@ -289,6 +328,8 @@
   function refresh() {
     if (state.lastSourceKey && state.lastSourceKey.indexOf('url:') === 0) {
       loadFromUrl(state.customUrl);
+    } else if (state.lastSourceKey === 'catalog') {
+      switchMode('catalog');
     } else if (state.lastSourceKey && state.lastSourceKey.indexOf('file:') === 0) {
       showStatus('Vuelve a seleccionar el archivo M3U para recargarlo.', false);
     } else {
@@ -331,8 +372,7 @@
       state.search = e.target.value; renderList();
     });
 
-    renderGroups();
-    renderList();
+    setChannels(BUILTIN.slice(), 'catalog', '✔ ' + BUILTIN.length + ' elementos del catálogo listos.');
   }
 
   if (document.readyState === 'loading') {
