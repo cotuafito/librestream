@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LibreStream — TV y películas gratis</title>
+    <base href="./" />
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+</head>
+
+<body>
+    <div class="shell">
+        <header class="topbar">
+            <div class="brand">
+                <span class="brand-mark">▶</span>
+                <div>
+                    <h1>LibreStream</h1>
+                    <span class="tagline">Reproductor IPTV · contenido gratuito y legal</span>
+                </div>
+            </div>
+            <div class="top-actions">
+                <a class="btn ghost" href="https://pluto.tv/" target="_blank" rel="noopener">Pluto TV ↗</a>
+                <button class="btn ghost" id="btnFullscreen" title="Pantalla completa">⛶ Pantalla completa</button>
+                <button class="btn ghost" id="btnStop" title="Detener">⏹ Detener</button>
+            </div>
+        </header>
+
+        <section class="toolbar">
+            <div class="source-tabs">
+                <button class="tab active" data-mode="pluto">📺 Pluto TV</button>
+                <button class="tab" data-mode="m3u">🔗 Lista M3U (URL)</button>
+                <button class="tab" data-mode="file">📄 Lista M3U (archivo)</button>
+                <button class="tab" data-mode="local">🎬 Videos locales</button>
+            </div>
+
+            <!-- Pluto TV -->
+            <div class="controls" id="panel-pluto">
+                <span class="hint">Sección:</span>
+                <button class="btn tiny sel" data-pluto="">Inicio</button>
+                <button class="btn tiny" data-pluto="live-tv">TV en vivo</button>
+                <button class="btn tiny" data-pluto="movies">Películas</button>
+                <button class="btn tiny" data-pluto="shows">Series</button>
+                <a class="btn ghost" id="plutoOpenTab" href="https://pluto.tv/" target="_blank" rel="noopener">Abrir en pestaña nueva ↗</a>
+                <span class="hint">Sitio oficial de Pluto TV · gratis, con publicidad</span>
+            </div>
+
+            <!-- M3U URL -->
+            <div class="controls" id="panel-m3u" style="display:none">
+                <input class="url-input" id="m3uUrl" type="text" placeholder="https://ejemplo.com/lista.m3u8" />
+                <button class="btn primary" id="btnLoadUrl">Cargar lista</button>
+                <span class="hint">Usa solo listas propias o con licencia.</span>
+            </div>
+
+            <!-- M3U archivo -->
+            <div class="controls" id="panel-file" style="display:none">
+                <input type="file" id="m3uFile" accept=".m3u,.m3u8,text/plain" />
+                <span class="hint">Selecciona un archivo .m3u / .m3u8 de tu PC.</span>
+            </div>
+
+            <!-- Videos locales -->
+            <div class="controls" id="panel-local" style="display:none">
+                <button class="btn primary" id="btnPickLocal">📂 Elegir videos de mi PC</button>
+                <span class="hint">Selecciona uno o varios archivos de video.</span>
+            </div>
+        </section>
+
+        <div class="status" id="status" style="display:none"></div>
+
+        <!-- Vista Pluto -->
+        <div id="view-pluto">
+            <div class="pluto-embed">
+                <iframe id="plutoFrame" src="https://pluto.tv/" title="Pluto TV"
+                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+            </div>
+            <p class="legal pluto-legal">
+                Pluto TV es un servicio gratuito y legal de Paramount, financiado con publicidad.
+                El contenido mostrado pertenece a sus respectivos dueños. Si el sitio no se muestra
+                correctamente aquí, usa el botón <strong>Abrir en pestaña nueva</strong>.
+            </p>
+        </div>
+
+        <!-- Vista reproductor -->
+        <main class="content" id="view-player" style="display:none">
+            <aside class="sidebar">
+                <div class="sidebar-head">
+                    <strong id="itemCount">0 elementos</strong>
+                    <button class="btn tiny" id="btnRefresh" title="Recargar fuente actual">↻</button>
+                </div>
+                <input class="search" id="search" type="text" placeholder="🔍 Buscar canal o película…" />
+                <div class="groups" id="groups"></div>
+                <div class="channel-list" id="channelList">
+                    <p class="empty">No hay elementos. Carga una fuente arriba.</p>
+                </div>
+            </aside>
+
+            <section class="player-area">
+                <div class="video-wrap">
+                    <video id="videoPlayer" controls autoplay playsinline></video>
+                    <div id="playerStatus" class="player-status"></div>
+                </div>
+                <div class="now-playing">
+                    <h2 id="nowTitle">Selecciona un canal o película</h2>
+                    <p id="nowGroup">Elige una fuente en la barra superior y luego un elemento de la lista.</p>
+                    <div class="volume">
+                        <span>Volumen</span>
+                        <input type="range" id="volume" min="0" max="1" step="0.05" value="1" />
+                    </div>
+                </div>
+                <p class="legal">
+                    LibreStream es un reproductor genérico y no distribuye contenido.
+                    Usa únicamente listas y archivos propios o con licencia.
+                </p>
+            </section>
+        </main>
+    </div>
+
+    <div id="blazor-error-ui" style="display:none">
+        Se produjo un error inesperado.
+        <a href="" class="reload">Recargar</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
