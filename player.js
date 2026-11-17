@@ -1,4 +1,4 @@
-/* Reproductor de LibreStream: HLS (hls.js), MP4 directo y archivos locales, sin Blazor. */
+/* Reproductor de CotuStream: HLS (hls.js), MP4 directo y archivos locales, sin Blazor. */
 (function () {
   'use strict';
 
@@ -23,16 +23,16 @@
   }
 
   function clearHandlers(v) {
-    var hs = v.__lsHandlers || {};
+    var hs = v.__csHandlers || {};
     Object.keys(hs).forEach(function (evt) {
       try { v.removeEventListener(evt, hs[evt]); } catch (_) { }
     });
-    v.__lsHandlers = {};
+    v.__csHandlers = {};
   }
 
   function addHandler(v, evt, fn) {
-    v.__lsHandlers = v.__lsHandlers || {};
-    v.__lsHandlers[evt] = fn;
+    v.__csHandlers = v.__csHandlers || {};
+    v.__csHandlers[evt] = fn;
     v.addEventListener(evt, fn);
   }
 
@@ -138,7 +138,7 @@
     v.load();
   }
 
-  window.librePlayer = {
+  window.cotuPlayer = {
     attach: function () { videoEl = document.getElementById('videoPlayer'); },
 
     playStream: function (url, opts) { playUrl(url, opts); },
