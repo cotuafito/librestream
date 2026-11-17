@@ -1,8 +1,15 @@
-/* LibreStream — lógica de la interfaz (sin Blazor, solo JS del navegador). */
+/* LibreStream — lógica de la interfaz (sin Blazor, solo JS del navegador).
+   Fuente principal: Internet Archive (películas en español, dominio público/licencias abiertas). */
 (function () {
   'use strict';
 
-  /* Catálogo legal integrado: contenido libre (Creative Commons) y streams de prueba
+  var IA_SEARCH = 'https://archive.org/advancedsearch.php';
+  var IA_METADATA = 'https://archive.org/metadata/';
+  var IA_DOWNLOAD = 'https://archive.org/download/';
+  var IA_IMAGE = 'https://archive.org/services/img/';
+  var PAGE_SIZE = 120;
+
+  /* Catálogo legal de respaldo: contenido libre (Creative Commons) y streams de prueba
      con CORS habilitado. Verificado reproduciendo con hls.js en navegador real. */
   var BUILTIN = [
     {
@@ -28,16 +35,20 @@
   ];
 
   var state = {
-    mode: 'catalog',
-    channels: BUILTIN.slice(),
+    mode: 'spanish',
+    channels: [],
     localFiles: [],
     current: null,
     currentId: null,
     search: '',
     group: 'Todos',
-    plutoPage: '',
     customUrl: '',
-    lastSourceKey: 'catalog'
+    lastSourceKey: 'spanish',
+    iaQuery: '',
+    iaPage: 1,
+    iaTotal: 0,
+    iaLoading: false,
+    iaResolveToken: 0
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -46,7 +57,7 @@
 
   function clean(s) {
     s = String(s || '').replace(/\[[^\]]*\]/g, '').trim();
-    return s.length ? s : 'Canal';
+    return s.length ? s : 'Película';
   }
 
   function getAttr(attrs, key) {
@@ -118,6 +129,49 @@
     el.textContent = message;
   }
 
+  function playerStatus(message) {
+    window.librePlayer.setStatus(message);
+  }
+
+  function escapeIaWord(word) {
+    return String(word || '')
+      .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ-]+/g, ' ')
+      .trim();
+  }
+
+  function iaSearchQuery(term) {
+    var q = 'mediatype:movies AND language:spa AND collection:feature_films';
+    var words = String(term || '').trim().split(/\s+/).map(escapeIaWord).filter(function (w) {
+      return w.length > 1;
+    });
+    if (words.length) q += ' AND (' + words.join(' AND ') + ')';
+    return q;
+  }
+
+  function iaDocToItem(doc) {
+    var id = doc.identifier;
+    var year = Array.isArray(doc.year) ? doc.year[0] : doc.year;
+    year = year ? String(year).slice(0, 4) : '';
+    return {
+      name: clean(doc.title || id),
+      group: 'Películas en español',
+      logo: IA_IMAGE + encodeURIComponent(id),
+      id: 'ia:' + id,
+      url: 'ia:' + id,
+      ia: true,
+      identifier: id,
+      year: year,
+      resolvedUrl: null
+    };
+  }
+
+  function firstFile(files, test) {
+    for (var i = 0; i < files.length; i++) {
+      if (test(files[i])) return files[i];
+    }
+    return null;
+  }
+
   /* ---------- render ---------- */
 
   function groups() {
@@ -133,7 +187,7 @@
     return state.channels.filter(function (c) {
       if (state.group !== 'Todos' && c.group !== state.group) return false;
       if (!q) return true;
-      return (c.name + ' ' + c.group).toLowerCase().indexOf(q) >= 0;
+      return (c.name + ' ' + c.group + ' ' + (c.year || '')).toLowerCase().indexOf(q) >= 0;
     });
   }
 
@@ -158,13 +212,22 @@
   function renderList() {
     var host = $('channelList');
     var items = filtered();
-    $('itemCount').textContent = state.channels.length + ' elementos';
+    var count = $('itemCount');
+
+    if (state.mode === 'spanish' && state.iaTotal) {
+      count.textContent = state.channels.length + ' de ' + state.iaTotal.toLocaleString('es-ES') + ' películas';
+    } else {
+      count.textContent = state.channels.length + ' elementos';
+    }
+
     host.innerHTML = '';
 
     if (!items.length) {
       var p = document.createElement('p');
       p.className = 'empty';
-      p.textContent = 'No hay elementos. Carga una fuente arriba.';
+      p.textContent = state.iaLoading
+        ? 'Buscando películas…'
+        : 'No hay elementos. Prueba otra búsqueda o carga una fuente arriba.';
       host.appendChild(p);
       return;
     }
@@ -185,53 +248,175 @@
       var info = document.createElement('span');
       info.className = 'chan-info';
       var nm = document.createElement('span'); nm.className = 'chan-name'; nm.textContent = c.name;
-      var gr = document.createElement('span'); gr.className = 'chan-group'; gr.textContent = c.group;
+      var gr = document.createElement('span'); gr.className = 'chan-group';
+      gr.textContent = c.year ? (c.group + ' · ' + c.year) : c.group;
       info.appendChild(nm); info.appendChild(gr);
       b.appendChild(info);
       b.addEventListener('click', function () { play(c); });
       host.appendChild(b);
     });
+
+    if (state.mode === 'spanish' && !state.iaLoading && !state.search.trim() &&
+        state.group === 'Todos' && state.iaTotal > state.channels.length) {
+      var more = document.createElement('button');
+      more.className = 'btn primary';
+      more.style.cssText = 'width:100%;margin-top:10px;';
+      var remaining = state.iaTotal - state.channels.length;
+      more.textContent = 'Cargar más películas (' + remaining.toLocaleString('es-ES') + ')';
+      more.addEventListener('click', function () {
+        loadSpanish(state.iaQuery, state.iaPage + 1, true);
+      });
+      host.appendChild(more);
+    }
   }
 
-  /* ---------- acciones ---------- */
+  /* ---------- Internet Archive ---------- */
+
+  function loadSpanish(term, page, append) {
+    if (state.iaLoading) return;
+
+    term = term || '';
+    page = page || 1;
+    state.iaQuery = term;
+    state.iaLoading = true;
+
+    showStatus(page > 1
+      ? 'Cargando más películas…'
+      : (term ? 'Buscando «' + term + '» en Internet Archive…' : 'Cargando películas en español…'));
+
+    var url = IA_SEARCH + '?q=' + encodeURIComponent(iaSearchQuery(term)) +
+      '&fl[]=identifier&fl[]=title&fl[]=year&rows=' + PAGE_SIZE +
+      '&page=' + page + '&output=json';
+
+    fetch(url, { mode: 'cors' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
+        return r.json();
+      })
+      .then(function (data) {
+        var resp = data.response || {};
+        var docs = resp.docs || [];
+        var total = resp.numFound || 0;
+        if (!docs.length && page === 1) {
+          throw new Error('No se encontraron películas para esa búsqueda.');
+        }
+
+        var items = docs.map(iaDocToItem);
+        state.iaTotal = total;
+        state.iaPage = page;
+        var key = 'spanish:' + term + ':' + page;
+
+        if (append) {
+          var seen = {};
+          state.channels.forEach(function (c) { seen[c.id] = 1; });
+          var added = items.filter(function (c) {
+            if (seen[c.id]) return false;
+            seen[c.id] = 1;
+            return true;
+          });
+          state.channels = state.channels.concat(added);
+          state.lastSourceKey = key;
+          renderGroups();
+          showStatus('✔ ' + added.length + ' películas más (' + state.channels.length +
+            ' de ' + state.iaTotal.toLocaleString('es-ES') + ').');
+        } else {
+          setChannels(items, key, '✔ ' + items.length + ' películas en español de ' +
+            state.iaTotal.toLocaleString('es-ES') + ' disponibles.');
+        }
+      })
+      .catch(function (e) {
+        showStatus('No se pudo consultar Internet Archive: ' + e.message, true);
+      })
+      .then(function () {
+        state.iaLoading = false;
+        renderList();
+      });
+  }
+
+  function resolveIa(item) {
+    var token = ++state.iaResolveToken;
+    showStatus('Preparando «' + item.name + '» desde Internet Archive…');
+    playerStatus('Buscando archivo de video…');
+
+    fetch(IA_METADATA + encodeURIComponent(item.identifier), { mode: 'cors' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
+        return r.json();
+      })
+      .then(function (md) {
+        if (token !== state.iaResolveToken) return;
+        var files = md.files || [];
+        var pick = firstFile(files, function (f) {
+          return f.format === 'h.264' && /\.mp4$/i.test(f.name);
+        }) || firstFile(files, function (f) {
+          return f.source === 'derivative' && /\.mp4$/i.test(f.name);
+        }) || firstFile(files, function (f) {
+          return /\.mp4$/i.test(f.name);
+        }) || firstFile(files, function (f) {
+          return /\.m3u8$/i.test(f.name);
+        }) || firstFile(files, function (f) {
+          return /\.(webm|ogv|mkv)$/i.test(f.name);
+        });
+
+        if (!pick) throw new Error('Esta ficha no tiene un video reproducible.');
+
+        var url = IA_DOWNLOAD + encodeURIComponent(item.identifier) + '/' +
+          encodeURIComponent(pick.name);
+        item.resolvedUrl = url;
+        item.url = url;
+
+        if (state.currentId === item.id) {
+          $('nowGroup').textContent = item.group +
+            (item.year ? ' · ' + item.year : '') + ' · Internet Archive';
+        }
+
+        showStatus('');
+        window.librePlayer.playStream(url, { title: item.name, timeout: 35000 });
+      })
+      .catch(function (e) {
+        if (token !== state.iaResolveToken) return;
+        showStatus('No se pudo preparar la película: ' + e.message, true);
+        playerStatus('Error: ' + e.message);
+      });
+  }
+
+  /* ---------- acciones generales ---------- */
 
   function switchMode(mode) {
     state.mode = mode;
     document.querySelectorAll('.tab').forEach(function (t) {
       t.classList.toggle('active', t.getAttribute('data-mode') === mode);
     });
-    ['catalog', 'pluto', 'm3u', 'file', 'local'].forEach(function (m) {
+    ['spanish', 'catalog', 'm3u', 'file', 'local'].forEach(function (m) {
       var panel = $('panel-' + m);
       if (panel) panel.style.display = (m === mode ? '' : 'none');
     });
-    var isPluto = (mode === 'pluto');
-    $('view-pluto').style.display = isPluto ? '' : 'none';
-    $('view-player').style.display = isPluto ? 'none' : '';
+    $('view-player').style.display = '';
     showStatus('');
 
     var legal = $('legalNote');
     if (legal) {
-      legal.textContent = (mode === 'catalog')
-        ? 'Catálogo integrado: películas cortas y demos bajo licencias libres (Blender Foundation / Creative Commons) y un canal de prueba HLS. LibreStream no distribuye contenido; usa además tus propias listas o archivos con licencia.'
-        : 'LibreStream es un reproductor genérico y no distribuye contenido. Usa únicamente listas y archivos propios o con licencia.';
+      if (mode === 'spanish') {
+        legal.textContent = 'Películas en español del archivo público de Internet Archive ' +
+          '(dominio público / licencias abiertas). LibreStream no distribuye contenido: ' +
+          'solo reproduce fuentes públicas y tus propios archivos con licencia.';
+      } else if (mode === 'catalog') {
+        legal.textContent = 'Catálogo integrado: películas cortas y demos bajo licencias libres ' +
+          '(Blender Foundation / Creative Commons) y un canal de prueba HLS. ' +
+          'LibreStream no distribuye contenido; usa además tus propias listas o archivos con licencia.';
+      } else {
+        legal.textContent = 'LibreStream es un reproductor genérico y no distribuye contenido. ' +
+          'Usa únicamente listas y archivos propios o con licencia.';
+      }
     }
 
-    if (mode === 'catalog') {
+    if (mode === 'spanish') {
+      loadSpanish(state.iaQuery, 1, false);
+    } else if (mode === 'catalog') {
       setChannels(BUILTIN.slice(), 'catalog', '✔ ' + BUILTIN.length + ' elementos del catálogo listos.');
-    } else if (!isPluto) {
+    } else {
       window.librePlayer.stop();
     }
-  }
-
-  function setPlutoPage(page) {
-    state.plutoPage = page;
-    var base = 'https://pluto.tv/latam/';
-    var url = page ? (base + page) : base;
-    $('plutoFrame').src = url;
-    $('plutoOpenTab').href = url;
-    document.querySelectorAll('[data-pluto]').forEach(function (b) {
-      b.classList.toggle('sel', b.getAttribute('data-pluto') === page);
-    });
   }
 
   function setChannels(items, key, message) {
@@ -244,8 +429,8 @@
     $('search').value = '';
     state.lastSourceKey = key;
     window.librePlayer.stop();
-    $('nowTitle').textContent = 'Selecciona un canal o película';
-    $('nowGroup').textContent = 'Elige un elemento de la lista para reproducir.';
+    $('nowTitle').textContent = 'Selecciona una película';
+    $('nowGroup').textContent = 'Elige un título de la lista para empezar a ver.';
     renderGroups();
     renderList();
     showStatus(message, false);
@@ -316,21 +501,28 @@
     state.currentId = c.id;
     renderList();
     $('nowTitle').textContent = c.name;
-    $('nowGroup').textContent = c.group;
-    if (/^local:/.test(c.url)) {
+    $('nowGroup').textContent = c.year
+      ? c.group + ' · ' + c.year
+      : c.group;
+
+    if (c.ia && !c.resolvedUrl) {
+      resolveIa(c);
+    } else if (/^local:/.test(c.url)) {
       var idx = parseInt(c.url.slice(6), 10);
       window.librePlayer.playLocalIndex(idx, state.localFiles);
     } else {
-      window.librePlayer.playStream(c.url);
+      window.librePlayer.playStream(c.url, { title: c.name });
     }
   }
 
   function refresh() {
-    if (state.lastSourceKey && state.lastSourceKey.indexOf('url:') === 0) {
+    if (state.lastSourceKey.indexOf('spanish:') === 0) {
+      loadSpanish(state.iaQuery, state.iaPage, false);
+    } else if (state.lastSourceKey.indexOf('url:') === 0) {
       loadFromUrl(state.customUrl);
     } else if (state.lastSourceKey === 'catalog') {
       switchMode('catalog');
-    } else if (state.lastSourceKey && state.lastSourceKey.indexOf('file:') === 0) {
+    } else if (state.lastSourceKey.indexOf('file:') === 0) {
       showStatus('Vuelve a seleccionar el archivo M3U para recargarlo.', false);
     } else {
       showStatus('Esta fuente no se puede recargar automáticamente.', false);
@@ -345,8 +537,16 @@
     document.querySelectorAll('.tab').forEach(function (t) {
       t.addEventListener('click', function () { switchMode(t.getAttribute('data-mode')); });
     });
-    document.querySelectorAll('[data-pluto]').forEach(function (b) {
-      b.addEventListener('click', function () { setPlutoPage(b.getAttribute('data-pluto')); });
+
+    $('btnIaSearch').addEventListener('click', function () {
+      loadSpanish($('iaSearch').value, 1, false);
+    });
+    $('iaSearch').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') loadSpanish($('iaSearch').value, 1, false);
+    });
+    $('btnIaReset').addEventListener('click', function () {
+      $('iaSearch').value = '';
+      loadSpanish('', 1, false);
     });
 
     $('btnLoadUrl').addEventListener('click', function () { loadFromUrl($('m3uUrl').value); });
@@ -357,11 +557,12 @@
     $('btnPickLocal').addEventListener('click', pickLocalFiles);
 
     $('btnStop').addEventListener('click', function () {
+      state.iaResolveToken++;
       window.librePlayer.stop();
       state.current = null; state.currentId = null;
       renderList();
-      $('nowTitle').textContent = 'Selecciona un canal o película';
-      $('nowGroup').textContent = 'Elige un elemento de la lista para reproducir.';
+      $('nowTitle').textContent = 'Selecciona una película';
+      $('nowGroup').textContent = 'Elige un título de la lista para empezar a ver.';
     });
     $('btnFullscreen').addEventListener('click', function () { window.librePlayer.toggleFullscreen(); });
     $('btnRefresh').addEventListener('click', refresh);
@@ -372,7 +573,7 @@
       state.search = e.target.value; renderList();
     });
 
-    setChannels(BUILTIN.slice(), 'catalog', '✔ ' + BUILTIN.length + ' elementos del catálogo listos.');
+    loadSpanish('', 1, false);
   }
 
   if (document.readyState === 'loading') {
