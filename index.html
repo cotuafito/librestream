@@ -4,21 +4,21 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LibreStream — Películas en español gratis</title>
+    <title>CotuStream — Películas en español gratis</title>
     <base href="./" />
-    <link rel="stylesheet" href="bootstrap.min.css?v=4" />
-    <link rel="stylesheet" href="app.css?v=4" />
-    <link rel="icon" type="image/png" href="favicon.png?v=4" />
+    <link rel="stylesheet" href="bootstrap.min.css?v=5" />
+    <link rel="stylesheet" href="app.css?v=5" />
+    <link rel="icon" type="image/png" href="favicon.png?v=5" />
 </head>
 
-<body>
+<body class="mode-spanish">
     <div class="shell">
         <header class="topbar">
             <div class="brand">
-                <span class="brand-mark">▶</span>
+                <span class="brand-mark">CS</span>
                 <div>
-                    <h1>LibreStream</h1>
-                    <span class="tagline">Reproductor IPTV · contenido gratuito y legal</span>
+                    <h1>CotuStream</h1>
+                    <span class="tagline">Cine en español gratis · carátulas, popularidad y novedades</span>
                 </div>
             </div>
             <div class="top-actions">
@@ -37,10 +37,18 @@
             </div>
 
             <div class="controls" id="panel-spanish">
-                <input class="url-input" id="iaSearch" type="text" placeholder="Buscar película en español (ej: comedia, 1964, drama)…" />
+                <input class="url-input" id="iaSearch" type="text" placeholder="Buscar por título, año, género…" />
                 <button class="btn primary" id="btnIaSearch">🔍 Buscar</button>
+                <label class="sort-label">Ordenar por
+                    <select id="iaSort">
+                        <option value="downloads desc">🔥 Más populares</option>
+                        <option value="publicdate desc">🆕 Recién añadidas</option>
+                        <option value="year desc">📅 Año de estreno</option>
+                        <option value="titleSorter asc">🔤 A-Z</option>
+                    </select>
+                </label>
                 <button class="btn tiny" id="btnIaReset">Ver catálogo</button>
-                <span class="hint">Miles de películas en español de dominio público / licencia abierta · Internet Archive.</span>
+                <span class="hint">Carátulas y títulos reales de Internet Archive · dominio público / licencias abiertas.</span>
             </div>
 
             <div class="controls" id="panel-catalog" style="display:none">
@@ -75,7 +83,7 @@
                 <input class="search" id="search" type="text" placeholder="🔍 Buscar en la lista actual…" />
                 <div class="groups" id="groups"></div>
                 <div class="channel-list" id="channelList">
-                    <p class="empty">Cargando catálogo…</p>
+                    <p class="empty">Cargando carátulas…</p>
                 </div>
             </aside>
 
@@ -94,7 +102,8 @@
                 </div>
                 <p class="legal" id="legalNote">
                     Películas en español del archivo público de Internet Archive (dominio público / licencias abiertas).
-                    LibreStream no distribuye contenido: solo reproduce fuentes públicas y tus propios archivos con licencia.
+                    CotuStream no distribuye contenido: solo reproduce fuentes públicas y tus propios archivos con licencia.
+                    «Recién añadidas» indica la fecha de incorporación al archivo, no un estreno comercial.
                 </p>
             </section>
         </main>
@@ -106,8 +115,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
-    <script src="player.js?v=4"></script>
-    <script src="app.js?v=4"></script>
+    <script src="player.js?v=5"></script>
+    <script src="app.js?v=5"></script>
 </body>
 
 </html>
