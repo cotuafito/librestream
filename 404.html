@@ -4,11 +4,11 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LibreStream — TV y películas gratis</title>
+    <title>LibreStream — Películas en español gratis</title>
     <base href="./" />
-    <link rel="stylesheet" href="bootstrap.min.css?v=3" />
-    <link rel="stylesheet" href="app.css?v=3" />
-    <link rel="icon" type="image/png" href="favicon.png?v=3" />
+    <link rel="stylesheet" href="bootstrap.min.css?v=4" />
+    <link rel="stylesheet" href="app.css?v=4" />
+    <link rel="icon" type="image/png" href="favicon.png?v=4" />
 </head>
 
 <body>
@@ -29,25 +29,22 @@
 
         <section class="toolbar">
             <div class="source-tabs">
-                <button class="tab active" data-mode="catalog">⭐ Catálogo gratis</button>
-                <button class="tab" data-mode="pluto">📺 Pluto TV</button>
+                <button class="tab active" data-mode="spanish">🎬 Películas en español</button>
+                <button class="tab" data-mode="catalog">⭐ Catálogo CC</button>
                 <button class="tab" data-mode="m3u">🔗 M3U (URL)</button>
                 <button class="tab" data-mode="file">📄 M3U (archivo)</button>
-                <button class="tab" data-mode="local">🎬 Mis videos</button>
+                <button class="tab" data-mode="local">📂 Mis videos</button>
             </div>
 
-            <div class="controls" id="panel-catalog">
-                <span class="hint">Películas y canales demo legales (Creative Commons). Elige un elemento para reproducir al instante.</span>
+            <div class="controls" id="panel-spanish">
+                <input class="url-input" id="iaSearch" type="text" placeholder="Buscar película en español (ej: comedia, 1964, drama)…" />
+                <button class="btn primary" id="btnIaSearch">🔍 Buscar</button>
+                <button class="btn tiny" id="btnIaReset">Ver catálogo</button>
+                <span class="hint">Miles de películas en español de dominio público / licencia abierta · Internet Archive.</span>
             </div>
 
-            <div class="controls" id="panel-pluto" style="display:none">
-                <a class="btn primary" id="plutoOpenTab" href="https://pluto.tv/latam/" target="_blank" rel="noopener">Abrir Pluto TV oficial ↗</a>
-                <span class="hint">Sección:</span>
-                <button class="btn tiny sel" data-pluto="">Inicio</button>
-                <button class="btn tiny" data-pluto="watch/live-tv">TV en vivo</button>
-                <button class="btn tiny" data-pluto="movies">Películas</button>
-                <button class="btn tiny" data-pluto="tv-shows">Series</button>
-                <span class="hint">Pluto solo reproduce en su sitio oficial: los anuncios no cargan dentro de un iframe.</span>
+            <div class="controls" id="panel-catalog" style="display:none">
+                <span class="hint">Películas cortas y canales demo bajo Creative Commons.</span>
             </div>
 
             <div class="controls" id="panel-m3u" style="display:none">
@@ -69,28 +66,16 @@
 
         <div class="status" id="status" style="display:none"></div>
 
-        <div id="view-pluto" style="display:none">
-            <div class="pluto-embed">
-                <iframe id="plutoFrame" src="https://pluto.tv/latam/" title="Pluto TV"
-                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
-            </div>
-            <p class="legal pluto-legal">
-                Vista previa del catálogo de Pluto TV. <strong>Si el video no arranca, usa el botón
-                «Abrir Pluto TV oficial ↗»</strong> de arriba: Pluto no permite reproducir sus anuncios
-                dentro de un iframe ajeno. Pluto TV es un servicio gratuito y legal de Paramount.
-            </p>
-        </div>
-
         <main class="content" id="view-player">
             <aside class="sidebar">
                 <div class="sidebar-head">
                     <strong id="itemCount">0 elementos</strong>
                     <button class="btn tiny" id="btnRefresh" title="Recargar fuente actual">↻</button>
                 </div>
-                <input class="search" id="search" type="text" placeholder="🔍 Buscar canal o película…" />
+                <input class="search" id="search" type="text" placeholder="🔍 Buscar en la lista actual…" />
                 <div class="groups" id="groups"></div>
                 <div class="channel-list" id="channelList">
-                    <p class="empty">No hay elementos. Carga una fuente arriba.</p>
+                    <p class="empty">Cargando catálogo…</p>
                 </div>
             </aside>
 
@@ -100,16 +85,16 @@
                     <div id="playerStatus" class="player-status"></div>
                 </div>
                 <div class="now-playing">
-                    <h2 id="nowTitle">Selecciona una película o canal</h2>
-                    <p id="nowGroup">Elige un elemento de la lista para empezar a ver.</p>
+                    <h2 id="nowTitle">Selecciona una película</h2>
+                    <p id="nowGroup">Elige un título de la lista para empezar a ver.</p>
                     <div class="volume">
                         <span>Volumen</span>
                         <input type="range" id="volume" min="0" max="1" step="0.05" value="1" />
                     </div>
                 </div>
                 <p class="legal" id="legalNote">
-                    Catálogo integrado: películas cortas y demos bajo licencias libres (Blender Foundation / Creative Commons)
-                    y un canal de prueba HLS. LibreStream no distribuye contenido; usa además tus propias listas o archivos con licencia.
+                    Películas en español del archivo público de Internet Archive (dominio público / licencias abiertas).
+                    LibreStream no distribuye contenido: solo reproduce fuentes públicas y tus propios archivos con licencia.
                 </p>
             </section>
         </main>
@@ -121,8 +106,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
-    <script src="player.js?v=3"></script>
-    <script src="app.js?v=3"></script>
+    <script src="player.js?v=4"></script>
+    <script src="app.js?v=4"></script>
 </body>
 
 </html>
